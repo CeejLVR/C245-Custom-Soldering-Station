@@ -24,14 +24,15 @@
 
 // reg0 = AIN0/AIN1, gain 4, PGA bypassed. It has to be bypassed because the
 //        thermocouple sits right at 0V and the PGA can't swing down there.
-// reg1 = 330 SPS, normal mode, single shot. bit 0 turns on the burnout sources
+// reg1 = 330 SPS, normal mode, single shot
 // reg2 = internal 2.048V reference
 // reg3 = IDACs off, DRDY on its own pin
 #define ADS_REG0        0x05
 #define ADS_REG1        0x80
-#define ADS_REG1_BCS    0x01
 #define ADS_REG2        0x00
 #define ADS_REG3        0x00
+#define ADS_REG2_IDAC   0x01    // both IDACs set to 10uA
+#define ADS_REG3_IDAC   0x40    // IDAC1 routed to AIN1
 
 #define ADS_VREF        2.048f
 #define ADS_GAIN        4.0f
@@ -122,12 +123,22 @@ bool ads_init(void) {
     return ok;
 }
 
-bool ads_burnout(bool on) {
-    uint8_t v = ADS_REG1 | (on ? ADS_REG1_BCS : 0);
-    ads_write_regs(1, &v, 1);   // note: writing a register also kicks off a conversion
-    uint8_t check = 0;
-    ads_read_regs(1, &check, 1);
-    return check == v;
+// Datasheet order: set the current first, then the routing. Turning it off
+// goes the other way. Writing a register also kicks off a conversion.
+bool ads_tip_source(bool on) {
+    uint8_t r2 = on ? ADS_REG2_IDAC : ADS_REG2;
+    uint8_t r3 = on ? ADS_REG3_IDAC : ADS_REG3;
+    if (on) {
+        ads_write_regs(2, &r2, 1);
+        ads_write_regs(3, &r3, 1);
+    } else {
+        ads_write_regs(3, &r3, 1);
+        ads_write_regs(2, &r2, 1);
+    }
+    uint8_t check2 = 0, check3 = 0;
+    ads_read_regs(2, &check2, 1);
+    ads_read_regs(3, &check3, 1);
+    return check2 == r2 && (check3 & 0xFE) == r3;
 }
 
 bool ads_convert(int32_t *code, uint32_t timeout_ms) {

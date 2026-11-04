@@ -7,7 +7,7 @@
 // Master heater switch. Leave this at 0 until the measurement timing has been
 // checked on the scope - with it at 0 the heater pin physically can't go high,
 // so the sensors, UI and watchdog can all be tested safely.
-#define CFG_HEATER_ARMED            0
+#define CFG_HEATER_ARMED            1
 
 // 24V / 2.5 ohm is about 9.6A and the fuse is 8A, so cap the duty for now
 #define HEATER_MAX_DUTY             0.50f
@@ -29,17 +29,25 @@
 // control loop timing
 #define CONTROL_PERIOD_MS           100
 #define MEAS_WINDOW_RESERVE_MS      12      // heater must be off at least this long each period
-#define HEATER_OFF_SETTLE_US        1000    // wait after heater off before closing relays (guess - check on scope)
-#define RELAY_ON_US                 2000    // AQV210E turn-on, 2ms max
-#define RELAY_OFF_US                1000    // AQV210E turn-off, 1ms max
-#define INPUT_RC_SETTLE_US          300     // R7/R8 + C8 input filter
+// Wait after heater off before reading the TC. 1ms for Q2 to turn off (guess -
+// check on scope) + 1.3ms for R7/R8 (4.7k each) and C8 (10nF) to settle from
+// the return wire drop down to 1uV. Rounded up.
+#define HEATER_OFF_SETTLE_US        2500
 #define ADC_TIMEOUT_MS              10      // one conversion at 330 SPS is ~3.1ms
 
-// Tip detection uses the ADS1220 burnout current sources. With no tip in, the
-// reading should shoot up to full scale. Not tested on real hardware yet.
+// Tip detection uses ADS1220 IDAC1, 10uA into AIN1. With a tip in, the current
+// goes through R8 and the TC to ground, so the reading is about -47mV. With no
+// tip, AIN1 is floating and the reading lands somewhere else. The reading has
+// to land between the two limits, so a dead current source reads as no tip too.
 #define TIP_CHECK_EVERY_N           10      // every 10 loops = once a second
-#define TIP_CHECK_SETTLE_MS         8       // C8 charging from 10uA takes a bit
-#define TIP_CHECK_OPEN_UV           400000.0f
+#define TIP_CHECK_SETTLE_MS         5       // C8 charges fast, but let the conversion from the register write finish
+#define TIP_CHECK_DRAIN_US          1500    // let C8 drain after the check
+#define TIP_CHECK_MIN_UV            35000.0f    // measured about 46.7mV with a tip in
+#define TIP_CHECK_MAX_UV            65000.0f    // leaves room for IDAC tolerance and a hot tip
+
+// A real TC reading can't get near this (about 700C above the cold junction).
+// Anything past it means the input is floating, so treat it as no tip.
+#define TC_MAX_PLAUSIBLE_UV         15000.0f
 
 
 // safety limits
@@ -78,7 +86,7 @@
 // ~19-22 uV/K according to the eevblog thread, still needs a real calibration.
 #define TC_SENS_UV_PER_C            21.0f
 #define TC_OFFSET_UV                0.0f
-#define TC_POLARITY                 (+1)    // flip to -1 if C1 and C3 end up swapped
+#define TC_POLARITY                 (-1)    // green is TC+ on this cartridge, red is grounded
 
 // starting PID gains, nowhere near tuned yet
 #define PID_KP                      0.030f

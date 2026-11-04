@@ -22,7 +22,7 @@
 
 #define STORE_OFFSET    (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
 #define NUM_SLOTS       (FLASH_SECTOR_SIZE / FLASH_PAGE_SIZE)
-#define MAGIC           0xC245C245u
+#define MAGIC           0xC245C246u
 
 typedef struct {
     uint32_t magic;
@@ -139,7 +139,7 @@ static void save_now(void) {
 
     // Interrupts are off during the write and an erase can take ~45ms, so the
     // heater goes off and both watchdogs get fed right before.
-    heater_off();       // not heater_kill - the control task owns the relays
+    heater_off();
     hwdog_kick();
     watchdog_update();
 

@@ -29,7 +29,7 @@ typedef enum {
     FAULT_RUNAWAY,          // heating hard, temp not going up
     FAULT_CONTROL_STALL,    // control task stopped checking in
     FAULT_EXT_WDT,          // 74HC123 failed its self test
-    FAULT_INTERLOCK,        // heater/relay interlock refused something
+    FAULT_INTERLOCK,        // tried to measure before the heater was off and settled
     FAULT_WDT_RESET,        // the Pico's own watchdog reset us
     FAULT_COUNT
 } fault_t;

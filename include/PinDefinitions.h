@@ -20,10 +20,8 @@
 #define PIN_WATCHDOG_KICK    21  // pin 27 (74HC123 1B)
 #define PIN_WATCHDOG_STATUS  22  // pin 29 (74HC123 1Q)
 
-// Sense relays K1 + K2 (both LEDs on one pin)
-#define PIN_SENSE_RELAY      6   // pin 9
-
-// GP7, GP8, GP9 saved for tip/stand detection later
+// GP6 is free now that the sense relays are gone
+// GP7, GP8, GP9 saved for stand detection later
 
 // Rotary Encoder + Buttons
 #define PIN_ENCODER_A        10  // pin 14

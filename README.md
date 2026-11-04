@@ -56,8 +56,8 @@ Keep `CFG_HEATER_ARMED` at 0 until step 5.
 1. **Pico alone on USB.** It should show an error (nothing is connected yet), the buttons should work, and the log should print.
 2. **Add the watchdog and logic chips.** The error should go away. Unplug the GP21 wire and the watchdog error should come back.
 3. **Add the ADC and temperature sensor, heater power off.** Warm the tip with another iron. `tc_uv` in the log should go up; if it goes down, set `TC_POLARITY` to -1. Pull the tip out and the screen should say NO TIP.
-4. **Scope GP6 and GP15.** GP6 should pulse briefly every 100 ms. GP15 should never go high.
-5. **Set `CFG_HEATER_ARMED` to 1.** Use a 2.5 Ω dummy load and a current-limited bench supply at about 5 V. GP15 and GP6 should never be high together.
+4. **Scope GP15.** It should never go high. Measure AIN0 and AIN1 against the ADS1220's AGND pin during a read; both should stay above -100 mV.
+5. **Set `CFG_HEATER_ARMED` to 1.** Use a 2.5 Ω dummy load and a current-limited bench supply at about 5 V. The heater drive contact should follow DRIVE, and the grounded return contact should stay at 0 V. Check that AIN1 has settled before each conversion.
 6. **Real tip, about 5 V, 1–2 A limit.** Keep the iron in its stand and stay with it. Raise the voltage slowly and tune the PID from the log.
 7. **Calibrate** using solder melting points (63/37 melts at 183 °C, SAC305 at about 217–220 °C) by adjusting `TC_SENS_UV_PER_C` and `TC_OFFSET_UV`.
 ## Reading the log

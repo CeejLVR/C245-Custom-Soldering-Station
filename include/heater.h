@@ -3,19 +3,18 @@
 
 #include <stdbool.h>
 
-// Heater gate (GP15) and sense relays (GP6).
-// The relays won't close while the heater is on and the heater won't turn on
-// while the relays are closed. Software-only for now.
+// Heater gate (GP15). The cartridge's heater/TC junction is grounded, so there
+// are no sense relays to manage. Heater current still shares the return wire
+// with the thermocouple, so readings only count once heater_settled() is true.
 
 void heater_init(void);     // first thing in main
 bool heater_on(void);       // false = not allowed right now
 void heater_off(void);
-void heater_kill(void);     // raw pin writes, also opens the relays. safe from anywhere
+void heater_kill(void);     // raw pin write. safe from anywhere
 void heater_lockout(bool locked);
 bool heater_locked(void);
 
-bool relays_close(void);    // false = not allowed right now
-void relays_open(void);
+bool heater_settled(void);  // true = heater off long enough to read the TC
 
 // 74HC123 hardware watchdog
 void hwdog_init(void);

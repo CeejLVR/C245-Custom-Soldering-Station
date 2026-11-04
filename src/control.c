@@ -10,7 +10,7 @@
 #include "pico/time.h"
 
 #include "pid.h"
-
+#include "storage.h"
 #include "config.h"
 #include "station.h"
 #include "heater.h"
@@ -18,13 +18,12 @@
 #include "storage.h"
 
 // The control loop, every 100ms:
-//   heater off -> read the cold junction -> close relays, read the TC, open relays
+//   heater off -> let the sense lines settle -> read the cold junction, read the TC
 //   -> run the PID -> heater on for whatever's left of the period
 //
 // On the C245 the thermocouple and heater share wires, so we can only measure
-// with the heater off. heater.c won't close the relays while the heater is on
-// (or the other way around), so if the order here ever gets messed up you get
-// an INTERLOCK fault instead of 24V going into the ADC.
+// with the heater off. If the order here ever gets messed up you get an
+// INTERLOCK fault instead of a bad reading going into the PID.
 
 static QueueHandle_t status_q;  // 1 slot, always the newest status
 static QueueHandle_t cmd_q;
@@ -158,35 +157,32 @@ static void handle_commands(void) {
     }
 }
 
-// Once a second, turn on the ADS1220's burnout current sources. With no tip
-// in the handle there's nothing connecting the two inputs, so the sources
-// pull them apart and the reading goes to full scale.
+// Once a second, push 10uA into AIN1 and see where it goes. With a tip in it
+// flows to ground through R8 and the TC. With no tip AIN1 floats. The
+// reading has to land in the expected band, so a dead source reads as no tip.
 static void check_tip(void) {
     int32_t raw;
-    if (ads_burnout(true)) {
+    if (ads_tip_source(true)) {
         vTaskDelay(pdMS_TO_TICKS(TIP_CHECK_SETTLE_MS));
         if (ads_convert(&raw, ADC_TIMEOUT_MS)) {
-            if (raw <= -ADC_SATURATION_CODE) {
-                // pinned at negative full scale - something's wrong with the input wiring
-                set_fault(FAULT_TC_RANGE);
-                tip_present = false;
-            } else {
-                tip_present = ads_to_uv(raw) < TIP_CHECK_OPEN_UV;
-            }
+            float drop_uv = -ads_to_uv(raw);
+            tip_present = drop_uv > TIP_CHECK_MIN_UV && drop_uv < TIP_CHECK_MAX_UV;
+        } else {
+            tip_present = false;
         }
+    } else {
+        tip_present = false;
     }
-    ads_burnout(false);
-    wait_us(1000);      // let C8 drain before the real reading
+    ads_tip_source(false);
+    wait_us(TIP_CHECK_DRAIN_US);      // let C8 drain before the real reading
 }
 
-// Everything that happens with the sense relays closed. Returns true if we
-// got a usable thermocouple reading.
+// Returns true if we got a usable thermocouple reading.
 static bool measure(int32_t *code) {
-    if (!relays_close()) {
+    if (!heater_settled()) {
         set_fault(FAULT_INTERLOCK);
         return false;
     }
-    wait_us(RELAY_ON_US + INPUT_RC_SETTLE_US);
 
     if (cycle % TIP_CHECK_EVERY_N == 0)
         check_tip();
@@ -199,8 +195,6 @@ static bool measure(int32_t *code) {
         set_fault(FAULT_ADC);
     }
 
-    relays_open();
-    wait_us(RELAY_OFF_US);  // give them the full 1ms to actually open
     return ok;
 }
 
@@ -251,9 +245,12 @@ static void control_task(void *arg) {
             tc_cal_t cal = { cfg.tc_sens_uv_per_c, cfg.tc_offset_uv, cfg.tc_polarity };
             tip = tip_temp(uv, cj, &cal);
 
+            // pulling the tip floats AIN1, which can happen between tip checks
+            if (fabsf(uv) > TC_MAX_PLAUSIBLE_UV)
+                tip_present = false;
+
             if (tip_present) {
-                if (abs(code) >= ADC_SATURATION_CODE) set_fault(FAULT_TC_RANGE);
-                else if (tip > TEMP_ABS_MAX_C) set_fault(FAULT_OVERTEMP);
+                if (tip > TEMP_ABS_MAX_C) set_fault(FAULT_OVERTEMP);
                 else if (tip < TEMP_MIN_PLAUSIBLE_C) set_fault(FAULT_TC_RANGE);
             }
         }

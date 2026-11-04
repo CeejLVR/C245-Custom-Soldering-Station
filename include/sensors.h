@@ -7,7 +7,7 @@
 
 // ADS1220 - thermocouple ADC on SPI0
 bool ads_init(void);
-bool ads_burnout(bool on);
+bool ads_tip_source(bool on);    // 10uA from IDAC1 into AIN1
 bool ads_convert(int32_t *code, uint32_t timeout_ms);   // blocks until DRDY or timeout
 float ads_to_uv(int32_t code);
 
