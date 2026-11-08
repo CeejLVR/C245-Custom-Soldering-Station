@@ -49,8 +49,8 @@ static bool oled_init(void) {
 }
 
 // Push the frame one page (8 rows) at a time and let go of the bus in
-// between. A full frame is ~23ms and the control task needs the bus for the
-// MCP9808 every 100ms.
+// between. A full frame is ~23ms, and this keeps the bus free for anything
+// else that ends up on it.
 static bool oled_flush(void) {
     for (uint8_t page = 0; page < OLED_H / 8; page++) {
         if (!bus_lock(pdMS_TO_TICKS(50)))

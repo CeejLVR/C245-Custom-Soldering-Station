@@ -176,46 +176,34 @@ float ads_to_uv(int32_t code) {
 }
 
 
-// ======== MCP9808 ========
+// cold junction (ADS1220 internal sensor) 
 
-#define CJ_ADDR         0x18    // A0-A2 grounded
-#define CJ_REG_TEMP     0x05
-#define CJ_REG_MFG      0x06    // reads 0x0054
-#define CJ_REG_DEV      0x07    // upper byte reads 0x04
+#define ADS_REG1_TS     0x02
 
-static bool cj_read_reg(uint8_t reg, uint16_t *out) {
-    uint8_t b[2];
-    if (!bus_write(CJ_ADDR, &reg, 1, true)) return false;
-    if (!bus_read(CJ_ADDR, b, 2)) return false;
-    *out = ((uint16_t)b[0] << 8) | b[1];
+bool cj_read(float *temp_c) {
+    uint8_t v = ADS_REG1 | ADS_REG1_TS;
+    ads_write_regs(1, &v, 1);   // also kicks off a conversion
+    uint8_t check = 0;
+    ads_read_regs(1, &check, 1);
+
+    int32_t raw = 0;
+    bool ok = (check == v) && ads_convert(&raw, ADC_TIMEOUT_MS);
+
+    // always go back to normal mode, even if the read failed
+    uint8_t normal = ADS_REG1;
+    ads_write_regs(1, &normal, 1);
+    if (!ok)
+        return false;
+
+    // raw is already sign-extended to 32 bits, so an arithmetic shift keeps
+    // negative temperatures negative
+    *temp_c = (float)(raw >> 10) * 0.03125f;
     return true;
 }
 
 bool cj_init(void) {
-    uint16_t mfg = 0, dev = 0;
-    if (!bus_lock(pdMS_TO_TICKS(100)))
-        return false;
-    bool ok = cj_read_reg(CJ_REG_MFG, &mfg) && cj_read_reg(CJ_REG_DEV, &dev);
-    bus_unlock();
-    return ok && mfg == 0x0054 && (dev >> 8) == 0x04;
-}
-
-bool cj_read(float *temp_c, TickType_t bus_wait) {
-    uint16_t raw;
-    if (!bus_lock(bus_wait))
-        return false;
-    bool ok = cj_read_reg(CJ_REG_TEMP, &raw);
-    bus_unlock();
-    if (!ok)
-        return false;
-
-    // top 3 bits are alert flags, bit 12 is sign, 1/16 C per count
-    raw &= 0x1FFF;
-    int16_t v = (int16_t)(raw & 0x0FFF);
-    if (raw & 0x1000)
-        v -= 4096;
-    *temp_c = (float)v * 0.0625f;
-    return true;
+    float t;
+    return cj_read(&t) && t > CJ_MIN_C && t < CJ_MAX_C;
 }
 
 

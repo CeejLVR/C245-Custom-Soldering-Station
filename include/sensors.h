@@ -11,9 +11,10 @@ bool ads_tip_source(bool on);    // 10uA from IDAC1 into AIN1
 bool ads_convert(int32_t *code, uint32_t timeout_ms);   // blocks until DRDY or timeout
 float ads_to_uv(int32_t code);
 
-// MCP9808 - cold junction sensor on the shared I2C bus
+// Cold junction - the ADS1220's internal temperature sensor. Call from the
+// control task only, between thermocouple reads.
 bool cj_init(void);
-bool cj_read(float *temp_c, TickType_t bus_wait);
+bool cj_read(float *temp_c);
 
 // thermocouple voltage -> tip temperature
 typedef struct {

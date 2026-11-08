@@ -76,7 +76,7 @@ Keep `CFG_HEATER_ARMED` at 0 until step 5.
 - `src/control.c`: the control loop, plus the queues the tasks use to talk to each other
 - `src/safety.c`: the safety task and watchdog self test
 - `src/heater.c`: heater and sensor switching, the safety rule between them, and the 74HC123
-- `src/sensors.c`: ADS1220, MCP9808 and the thermocouple math
+- `src/sensors.c`: ADS1220 (thermocouple and cold-junction temperature) and the thermocouple math
 - `src/ui.c`: screens and button handling
 - `src/board.c`: shared I2C bus, encoder and buttons
 - `src/storage.c`: settings saved to flash

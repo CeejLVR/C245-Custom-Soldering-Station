@@ -18,7 +18,7 @@
 #include "storage.h"
 
 // The control loop, every 100ms:
-//   heater off -> let the sense lines settle -> read the cold junction, read the TC
+//   heater off -> let the sense lines settle -> read the TC, read the cold junction (once a second)
 //   -> run the PID -> heater on for whatever's left of the period
 //
 // On the C245 the thermocouple and heater share wires, so we can only measure
@@ -229,17 +229,22 @@ static void control_task(void *arg) {
 
         wait_us(HEATER_OFF_SETTLE_US);
 
-        // cold junction. if the OLED has the bus right now just keep the old value
-        float t;
-        if (cj_read(&t, pdMS_TO_TICKS(5)) && t > CJ_MIN_C && t < CJ_MAX_C) {
-            cj = t;
-            cj_fails = 0;
-        } else if (++cj_fails >= CJ_MAX_FAILS) {
-            set_fault(FAULT_CJ_SENSOR);
-        }
-
         int32_t code = 0;
         bool got_reading = measure(&code);
+
+        // Cold junction, once a second, read AFTER the thermocouple. The first
+        // conversion after leaving temperature mode reads about 20uV off, so
+        // doing it here gives the ADC 100ms to recover before the next TC read.
+        // This cycle uses the cold junction from a second ago, which is fine.
+        if (cycle % CJ_READ_EVERY_N == CJ_READ_PHASE) {
+            float t;
+            if (cj_read(&t) && t > CJ_MIN_C && t < CJ_MAX_C) {
+                cj = t;
+                cj_fails = 0;
+            } else if (++cj_fails >= CJ_MAX_FAILS) {
+                set_fault(FAULT_CJ_SENSOR);
+            }
+        }
         if (got_reading) {
             uv = ads_to_uv(code);
             tc_cal_t cal = { cfg.tc_sens_uv_per_c, cfg.tc_offset_uv, cfg.tc_polarity };

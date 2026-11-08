@@ -60,7 +60,9 @@
 #define TEMP_MIN_PLAUSIBLE_C        (-20.0f) // reading this cold probably means the TC is backwards
 #define CJ_MIN_C                    (-10.0f)
 #define CJ_MAX_C                    85.0f
-#define CJ_MAX_FAILS                20
+#define CJ_MAX_FAILS                3       // reads happen once a second now
+#define CJ_READ_EVERY_N             10      // every 10 loops = once a second
+#define CJ_READ_PHASE               5       // half a second away from the tip check
 #define ADC_MAX_FAILS               3
 #define ADC_SATURATION_CODE         0x7F0000
 
@@ -98,7 +100,7 @@
 #define ADC_SPI_BAUD_HZ             2000000
 
 // encoder / buttons
-#define ENCODER_TRANSITIONS_PER_DETENT 4    // EC11 is normally 4, try 2 if it skips clicks
+#define ENCODER_TRANSITIONS_PER_DETENT 4    // try 2 if it skips clicks
 #define ENCODER_REVERSE             0
 #define BUTTON_POLL_MS              5
 #define BUTTON_DEBOUNCE_SAMPLES     4

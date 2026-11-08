@@ -4,7 +4,7 @@
 /* All GPIO assignments */
 // these are GPIO numbers not physical pins (physical pin in the comment)
 
-// I2C0: OLED (0x3C) + MCP9808 (0x18)
+// I2C0: OLED (0x3C)
 #define PIN_I2C_SDA          4   // pin 6
 #define PIN_I2C_SCL          5   // pin 7
 

@@ -7,8 +7,8 @@
 #include "hardware/i2c.h"
 #include "FreeRTOS.h"
 
-// I2C0 is shared by the OLED and the MCP9808, so take the lock first.
-// bus_write/bus_read assume you already have it.
+// I2C0 carries the OLED. Take the lock first.
+// bus_write/bus_read
 void bus_init(void);
 bool bus_lock(TickType_t wait);
 void bus_unlock(void);

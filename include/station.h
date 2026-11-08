@@ -23,7 +23,7 @@ typedef enum {
 typedef enum {
     FAULT_NONE = 0,
     FAULT_ADC,              // ADS1220 isn't answering
-    FAULT_CJ_SENSOR,        // MCP9808 missing or reading garbage
+    FAULT_CJ_SENSOR,        // ADS1220 temp sensor not reading or out of range
     FAULT_TC_RANGE,         // thermocouple pegged or impossibly cold
     FAULT_OVERTEMP,
     FAULT_RUNAWAY,          // heating hard, temp not going up
