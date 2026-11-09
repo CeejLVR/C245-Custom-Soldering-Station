@@ -6,12 +6,14 @@
 #include "queue.h"
 #include "timers.h"
 
+#include "hardware/gpio.h"
 #include "hardware/watchdog.h"
 #include "pico/time.h"
 
 #include "pid.h"
 #include "storage.h"
 #include "config.h"
+#include "PinDefinitions.h"
 #include "station.h"
 #include "heater.h"
 #include "sensors.h"
@@ -36,6 +38,8 @@ static bool pid_running;
 
 static fault_t fault = FAULT_NONE;
 static bool enabled, standby, tip_present;
+static bool in_stand, left_stand;   // left_stand: set for one loop when the handle comes out
+static int stand_count;
 static int cj_fails, adc_fails;
 static uint32_t cycle;
 
@@ -132,6 +136,9 @@ static void handle_commands(void) {
             break;
 
         case CMD_WAKE:
+            // resting in the stand stays in standby; lifting it wakes it up
+            if (in_stand)
+                break;
             if (standby) {
                 standby = false;
                 xTimerStop(off_timer, 0);
@@ -154,6 +161,50 @@ static void handle_commands(void) {
             pid_running = false;
             break;
         }
+    }
+}
+
+// ---------- stand ----------
+
+static void stand_init(void) {
+    gpio_init(PIN_STAND);
+    gpio_set_dir(PIN_STAND, GPIO_IN);
+    gpio_pull_up(PIN_STAND);    // backup for the external pull-up
+}
+
+// Called with the heater off and settled, so the tip is at ground and the
+// return wire drop can't make the handle look like it left the stand.
+static void stand_update(void) {
+    left_stand = false;
+    if (!STAND_DETECT_ENABLED) {
+        in_stand = false;
+        return;
+    }
+    bool low = !gpio_get(PIN_STAND);
+    if (low == in_stand) {
+        stand_count = 0;
+        return;
+    }
+    if (++stand_count >= STAND_DEBOUNCE_N) {
+        stand_count = 0;
+        in_stand = low;
+        left_stand = !low;
+    }
+}
+
+// In the stand -> standby, and the auto-off countdown starts. Out of the
+// stand -> back to full temperature, and the no-input timer takes over again.
+static void apply_stand(void) {
+    if (!enabled)
+        return;
+    if (in_stand && !standby) {
+        standby = true;
+        xTimerStop(sleep_timer, 0);
+        xTimerReset(off_timer, 0);
+    } else if (left_stand && standby) {
+        standby = false;
+        xTimerStop(off_timer, 0);
+        xTimerReset(sleep_timer, 0);
     }
 }
 
@@ -205,6 +256,7 @@ static void control_task(void *arg) {
     if (watchdog_caused_reboot()) set_fault(FAULT_WDT_RESET);
     if (!ads_init()) set_fault(FAULT_ADC);
     if (!cj_init()) set_fault(FAULT_CJ_SENSOR);
+    stand_init();
 
     sleep_timer = xTimerCreate("sleep", pdMS_TO_TICKS(SLEEP_TIMEOUT_S * 1000u), pdFALSE, NULL, sleep_expired);
     off_timer = xTimerCreate("autooff", pdMS_TO_TICKS(AUTO_OFF_TIMEOUT_S * 1000u), pdFALSE, NULL, off_expired);
@@ -228,6 +280,8 @@ static void control_task(void *arg) {
         handle_commands();
 
         wait_us(HEATER_OFF_SETTLE_US);
+        stand_update();
+        apply_stand();
 
         int32_t code = 0;
         bool got_reading = measure(&code);
@@ -321,6 +375,7 @@ static void control_task(void *arg) {
         st.setpoint_c = (int16_t)target;
         st.preset = cfg.active_preset;
         st.tip_present = tip_present;
+        st.in_stand = in_stand;
         st.enabled = enabled;
         st.armed = CFG_HEATER_ARMED && !heater_locked();
         st.time_ms = to_ms_since_boot(get_absolute_time());

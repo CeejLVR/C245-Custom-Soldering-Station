@@ -70,13 +70,13 @@ static void log_task(void *arg) {
 
         // reprint the header every so often so it's there if you connect late
         if (lines++ % 50 == 0)
-            printf("# ms,state,tip_c,cj_c,tc_uv,set_c,demand,applied,tip,armed,fault\n");
+            printf("# ms,state,tip_c,cj_c,tc_uv,set_c,demand,applied,tip,armed,fault,stand\n");
 
-        printf("%lu,%s,%.1f,%.2f,%.1f,%d,%.3f,%.3f,%d,%d,%s\n",
+        printf("%lu,%s,%.1f,%.2f,%.1f,%d,%.3f,%.3f,%d,%d,%s,%d\n",
                (unsigned long)st.time_ms, state_name(st.state),
                st.tip_c, st.cj_c, st.tc_uv, st.setpoint_c,
                st.duty_demand, st.duty_applied, st.tip_present, st.armed,
-               fault_name(st.fault));
+               fault_name(st.fault), st.in_stand);
     }
 }
 

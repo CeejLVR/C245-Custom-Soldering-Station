@@ -45,6 +45,7 @@ typedef struct {
     int16_t setpoint_c;
     uint8_t preset;
     bool tip_present;
+    bool in_stand;
     bool enabled;
     bool armed;
     uint32_t time_ms;

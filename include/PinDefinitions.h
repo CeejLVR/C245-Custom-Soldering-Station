@@ -20,8 +20,11 @@
 #define PIN_WATCHDOG_KICK    21  // pin 27 (74HC123 1B)
 #define PIN_WATCHDOG_STATUS  22  // pin 29 (74HC123 1Q)
 
-// GP6 is free now that the sense relays are gone
-// GP7, GP8, GP9 saved for stand detection later
+// Stand detection: the stand's metal cradle, through 4.7k. Pulled up to 3V3,
+// reads low when the grounded tip rests on the cradle.
+#define PIN_STAND            7   // pin 10
+
+// GP6, GP8, GP9 are free
 
 // Rotary Encoder + Buttons
 #define PIN_ENCODER_A        10  // pin 14

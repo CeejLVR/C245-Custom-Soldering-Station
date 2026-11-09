@@ -84,6 +84,12 @@
 #define SLEEP_TIMEOUT_S             600     // 10 min with no input -> standby
 #define AUTO_OFF_TIMEOUT_S          1800    // 30 min in standby -> off
 
+// Stand detection. Read every loop while the heater is off, because the tip
+// rises a little during heater pulses (drop along the return wire). The input
+// has to read the same this many loops in a row (100ms each) before it counts.
+#define STAND_DETECT_ENABLED        1
+#define STAND_DEBOUNCE_N            3
+
 // Thermocouple defaults. Saved settings override these once they exist.
 // ~19-22 uV/K according to the eevblog thread, still needs a real calibration.
 #define TC_SENS_UV_PER_C            21.0f
